@@ -12,18 +12,22 @@ const MAPS = load("mapdata.js", "MAPS");
 const html = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
 const FIELD = JSON.parse(html.match(/const FIELD=(\[[\s\S]*?\]);/)[1]);
 
+const POOL = JSON.parse(html.match(/const POOL=(\[[\s\S]*?\]);/)[1]);
 const keys = Object.keys(EDGES);
-console.log(`EDGES keys: ${keys.length}`);
+console.log(`EDGES keys: ${keys.length}, maps: ${MAPS.length} (${MAPS.filter(m => m.active).length} in rotation)`);
 let bad = 0;
-// Every brawler in the pool must be in every map, and have edges. Enemy-only brawlers need edges only.
-const pool = Object.keys(MAPS[0].wr);
-for (const k of pool) for (const m of MAPS) if (!(k in m.wr)) { console.log(`MISSING: "${k}" not in ${m.name}`); bad++; }
+// A pool brawler with too few matches on a map has no win rate there. The trainer simply doesn't offer
+// it on that map, so gaps are reported, not treated as breakage. Real breakage: a map with no pool data.
+const pool = POOL;
+const gaps = MAPS.map(m => [m, pool.filter(k => !(k in m.wr))]).filter(([, g]) => g.length);
+for (const [m, g] of gaps) console.log(`gap: ${m.name} (${m.active ? "in rotation" : "retired"}, ${(m.n / 1e3).toFixed(0)}k matches) has no win rate for ${g.join(", ")}`);
+for (const m of MAPS) if (!Object.keys(m.wr).length) { console.log(`EMPTY: ${m.name} has no pool win rates`); bad++; }
 for (const k of pool) if (!EDGES[k]) { console.log(`NO EDGES for pool brawler "${k}"`); bad++; }
 for (const k of FIELD) if (!EDGES[k]) { console.log(`NO EDGES for field brawler "${k}"`); bad++; }
-console.log(bad ? `${bad} mismatches` : `all ${pool.length} pool brawlers in every map; every pool and field brawler has edges`);
+console.log(bad ? `${bad} problems` : `no problems: every map has pool win rates, every pool and field brawler has edges`);
 
 // Opponent / teammate names that no draft can ever produce.
-const known = new Set([...FIELD, ...Object.keys(MAPS[0].wr)]);
+const known = new Set([...FIELD, ...POOL]);
 const unknown = {};
 for (const [k, e] of Object.entries(EDGES))
   for (const side of ["vs", "with"])
@@ -40,7 +44,7 @@ const hasW = (a, b, key) => {
             (A && A.vs[b] && A.vs[b].w !== undefined) ||
             (B && B.vs[a] && B.vs[a].w !== undefined));
 };
-const own = Object.keys(MAPS[0].wr);
+const own = POOL;
 const modeKeys = new Set();
 for (const e of Object.values(EDGES)) for (const m of Object.keys(e.modes || {})) modeKeys.add(m);
 console.log(`\nmode keys seen: ${[...modeKeys].sort().join(", ")}`);

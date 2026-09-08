@@ -78,6 +78,7 @@ td.per .cnt{color:#7fe0a0}td.per .lose{color:#ff9c9c}td.per .none{color:#5a5578;
 .src{color:#6f6990;font-size:10px;font-weight:400}
 tr.mine td{background:#2b2547;color:#ffd75e;font-weight:600}
 tr.front td{color:#7fe0a0}
+tr.good td.w{color:#7fe0a0;font-weight:600}
 tr.front td.s{color:#5fb87f}
 .actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
 button.go{flex:1;min-width:150px;background:#ffd75e;color:#191428;border:0;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit}
@@ -85,6 +86,21 @@ button.alt{background:transparent;border:1px solid #3a3358;color:#a9a3c8;border-
 .toggle{display:flex;gap:6px;margin-top:8px}
 .toggle button{flex:1;background:#201b38;border:1px solid #322c50;color:#8b86a3;border-radius:8px;padding:7px;font-size:12px;cursor:pointer;font-family:inherit}
 .toggle button.on{background:#ffd75e;color:#191428;border-color:#ffd75e;font-weight:600}
+/* tabs and the Maps view */
+.tabs{display:flex;gap:6px;margin-bottom:12px}
+.tabs button{flex:1;background:#201b38;border:1px solid #322c50;color:#8b86a3;border-radius:9px;padding:9px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+.tabs button.on{background:#332c52;color:#fff;border-color:#4b4275}
+.maplist{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px;margin-bottom:4px}
+button.maprow{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#262140;border:1px solid #3a3358;color:#ded9f0;border-radius:9px;padding:9px 11px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;text-align:left}
+button.maprow:hover{background:#332c56;border-color:#ffd75e}
+.rot{font-size:9px;text-transform:uppercase;letter-spacing:.06em;background:#1f4d2c;color:#7fe0a0;padding:2px 7px;border-radius:20px;font-weight:700;white-space:nowrap}
+.back{background:transparent;border:1px solid #3a3358;color:#a9a3c8;border-radius:9px;padding:8px 12px;font-size:12px;cursor:pointer;font-family:inherit;margin-bottom:10px}
+td.br{white-space:nowrap}
+td.br img{width:36px;height:36px;border-radius:7px;vertical-align:middle;margin-right:8px;background:#1a1626}
+td.ctr{line-height:1.7}
+.cchip{display:inline-block;background:#3a2028;color:#ff9c9c;border-radius:6px;padding:2px 7px;margin:0 4px 4px 0;font-size:12px;white-space:nowrap}
+.cchip b{color:#ffc4c4;font-weight:700}
+.cnone{color:#5a5578;font-style:italic;font-size:12px}
 .foot{color:#6f6990;font-size:11px;line-height:1.6;margin-top:18px;padding-top:14px;border-top:1px solid #262140}
 </style>
 
@@ -96,20 +112,32 @@ button.alt{background:transparent;border:1px solid #3a3358;color:#a9a3c8;border-
   <div class="score"><b id="pct">—</b><span id="tally">no drafts yet</span></div>
 </div>
 
-<div class="toggle">
-  <button id="t8" class="on">Core 8 only</button>
-  <button id="tall">Full pool (29)</button>
+<div class="tabs">
+  <button id="tabDraft" class="on">Draft trainer</button>
+  <button id="tabMaps">Maps</button>
 </div>
 
-<div class="card" id="draft"></div>
-<div id="result"></div>
-<div class="actions">
-  <button class="go" id="next">New draft</button>
-  <button class="alt" id="reset">Reset score</button>
+<div id="viewDraft">
+  <div class="toggle">
+    <button id="t8" class="on">Core 8 only</button>
+    <button id="tall">Full pool (29)</button>
+  </div>
+
+  <div class="card" id="draft"></div>
+  <div id="result"></div>
+  <div class="actions">
+    <button class="go" id="next">New draft</button>
+    <button class="alt" id="reset">Reset score</button>
+  </div>
+</div>
+
+<div id="viewMaps" hidden>
+  <div class="card" id="mapList"></div>
+  <div id="mapDetail"></div>
 </div>
 
 <div class="foot">
-Win rates are all-league Ranked data from Brawl Planet (Sept 2026), ~1.9M matches per map. Eight maps loaded: Kaboom Canyon, Hot&nbsp;Zone Ring of Fire, Belle's Rock, Flaring Phoenix, Undermine, Hard Rock Mine, Sneaky Fields, Hideout.
+Win rates are all-league Ranked data from Brawl Planet, <span id="mapcount">—</span> ranked maps loaded, newest match in the sample <span id="mapdate">—</span>. Retired maps with no ranked data are left out. The <b>Maps</b> tab ranks your brawlers on any one map and lists who counters each of them.
 Two axes, never blended: <b>Map</b> is the brawler's win rate on this map. <b>Matchup</b> is the average of its win rate against each enemy brawler already on the board, using only pairings Brawl Planet publishes; with no published pairing it shows "no data" rather than a substitute number. Each pairing is taken from the most specific source available: this mode on the brawler's own page, this mode on the enemy's page (flipped, since one side's win is the other's loss), then the all-modes numbers the same way. Per-mode lists exist only where a brawler has enough matches in that mode, so some pairings fall back to all-modes numbers. Pairing data is Diamond 1 and above, pooled across leagues, refreshed hourly by the site.
 Status compares your pick only against brawlers you could still have taken. "Better pick" names one that was at least as good on both axes and better on one. A <b>good pick</b> is one nothing beat that way; there can be more than one, and choosing between them is a judgement about how much the matchup matters. Where either brawler has no matchup number, the comparison is on map alone. At pick 1 the board is empty, so it is map only.
 Grading only considers brawlers you own at Level 11 plus this season's free four — it answers "was this the best pick <em>available to you</em>", not "the best pick in the game".
@@ -121,6 +149,11 @@ Grading only considers brawlers you own at Level 11 plus this season's free four
 const CORE8=["Surge","Starr Nova","8-Bit","Brock","Edgar","Emz","Mortis","Nori"];
 const FREE=["Nori","Kaze","Willow","Trunk"];
 
+// Everything you can pick: 25 owned at Level 11 plus this season's free four.
+const POOL=["8-Bit","Bibi","Bo","Bolt","Brock","Chuck","Colette","Cordelius","Crow","Edgar","Emz",
+"Frank","Gale","Gray","Griff","Kaze","Kit","Leon","Lumi","Mandy","Mortis","Nita","Nori","Shelly",
+"Starr Nova","Surge","Trunk","Willow","Ziggy"];
+
 // Names the simulated players draft from. Includes meta picks you don't own,
 // so bans and steals bite the way they do in a real lobby.
 const FIELD=["Amber","Shade","Wendy","Gus","Ash","El Primo","Rico","Stu","Damian","Piper","Tick",
@@ -129,7 +162,7 @@ const FIELD=["Amber","Shade","Wendy","Gus","Ash","El Primo","Rico","Stu","Damian
 "Mico","Squeak","Dynamike","Chester","Belle","Bea","Nani","Jessie","Berry","Doug","Buzz","Crow",
 "Mortis","Edgar","Leon","Brock","Surge","Emz","8-Bit","Bibi","Nori"];
 
-const mapImg=name=>name.toLowerCase().replace(/[^a-z0-9]/g,"");
+const mapPic=m=>`https://storage.googleapis.com/brawlanalyzer-public/map_images/${m.img||m.name.toLowerCase().replace(/[^a-z0-9]/g,"")}.png`;
 // Brawler portraits live in the same public bucket as the map images; slug = lowercase, spaces to underscores.
 const portrait=name=>`https://storage.googleapis.com/brawlanalyzer-public/brawlers/${name.toLowerCase().replace(/ /g,"_")}.png`;
 const portImg=name=>`<img src="${portrait(name)}" alt="${name}" loading="lazy">`;
@@ -138,13 +171,17 @@ let pool="core", cur=null, answered=false, stats={n:0,front:0,dom:0};
 const $=id=>document.getElementById(id);
 const rnd=a=>a[Math.floor(Math.random()*a.length)];
 
-function myPool(){
-  const all=Object.keys(MAPS[0].wr);
-  return pool==="core" ? CORE8.slice() : all;
+// Drafts run only on maps in the Ranked rotation; the Maps tab still lists every map with ranked data.
+const DRAFT_MAPS=MAPS.filter(m=>m.active);
+
+// A brawler with no win rate on the given map can't be graded on it, so it isn't offered.
+function myPool(map){
+  const list = pool==="core" ? CORE8.slice() : POOL.slice();
+  return map ? list.filter(n=>map.wr[n]!==undefined) : list;
 }
 
 function newDraft(){
-  const map=rnd(MAPS);
+  const map=rnd(DRAFT_MAPS);
   const names=Object.keys(map.wr);
 
   // Bans: each team bans 3, weighted toward brawlers that are actually strong on this map.
@@ -172,7 +209,7 @@ function newDraft(){
   const beforeYou=board.filter(b=>b.s<slot&&b.name).map(b=>b.name);
   const enemies=board.filter(b=>b.s<slot&&b.team==="red").map(b=>b.name);
   const gone=bans.concat(beforeYou);
-  const options=myPool().filter(n=>!gone.includes(n));
+  const options=myPool(map).filter(n=>!gone.includes(n));
   cur={map,bans,myBans,theirBans,dupes,slot,board,enemies,gone,options};
   answered=false;
   render();
@@ -182,7 +219,7 @@ function newDraft(){
 function render(){
   const c=cur, m=c.map;
   let h=`<div class="maphead"><span class="mapname">${m.name}</span><span class="mode">${m.mode}</span></div>`;
-  h+=`<div class="maplayout"><img src="https://storage.googleapis.com/brawlanalyzer-public/map_images/${mapImg(m.name)}.png" alt="${m.name} layout" loading="lazy" onerror="this.parentNode.style.display='none'"></div>`;
+  h+=`<div class="maplayout"><img src="${mapPic(m)}" alt="${m.name} layout" loading="lazy" onerror="this.parentNode.style.display='none'"></div>`;
   const banNote=c.dupes?` — ${c.dupes} ban${c.dupes>1?"s":""} collided across teams`:"";
   // Draft banner. First pick sits outermost on each side, like the in-game screen.
   const card=b=>{
@@ -202,7 +239,7 @@ function render(){
   const pos=c.slot===1?"first overall — nothing on the board":c.slot===4?"fourth pick — you've seen both enemy picks":"fifth pick — last blue pick";
   h+=`<div class="turn">You are <b>blue, pick ${c.slot}</b> — ${pos}.</div>`;
   h+=`<div class="lbl">Your pick</div><div class="grid">`;
-  myPool().sort().forEach(n=>{
+  myPool(c.map).sort().forEach(n=>{
     const dead=c.gone.includes(n)||answered;
     h+=`<button class="pick" ${dead?"disabled":""} onclick="answer('${n.replace(/'/g,"\\'")}')">${portImg(n)}<span>${n}</span></button>`;
   });
@@ -344,15 +381,82 @@ function setPool(p){
   $("tall").className = p==="all" ? "on" : "";
   if(cur){
     // Same map, same bans, same board — only the brawlers you're allowed to pick change.
-    cur.options=myPool().filter(n=>!cur.gone.includes(n));
+    cur.options=myPool(cur.map).filter(n=>!cur.gone.includes(n));
     render();
   }
+}
+
+// ---- Maps view --------------------------------------------------------------
+
+// Every brawler that beats this one on this map's mode, worst pairing first.
+function countersFor(name,mode){
+  const out=[];
+  Object.keys(EDGES).forEach(en=>{
+    if(en===name) return;
+    const p=pairing(name,en,mode);
+    if(!p.none&&p.w!==undefined&&p.w<50) out.push(p);
+  });
+  return out.sort((a,b)=>a.w-b.w);
+}
+
+function renderMapList(){
+  const byMode={};
+  MAPS.forEach((m,i)=>{ (byMode[m.mode]=byMode[m.mode]||[]).push({m,i}); });
+  const rotating=MAPS.filter(m=>m.active).length;
+  let h=`<div class="maphead"><span class="mapname">Maps</span><span class="mode">${MAPS.length} ranked</span></div>`;
+  h+=`<div class="sub" style="margin-top:6px">${rotating} in the rotation now. Pick a map to see your brawlers ranked on it, and who counters each one.</div>`;
+  Object.keys(byMode).sort().forEach(mode=>{
+    const list=byMode[mode].slice().sort((a,b)=>(b.m.active-a.m.active)||a.m.name.localeCompare(b.m.name));
+    h+=`<div class="lbl">${mode} — ${list.length}</div><div class="maplist">`;
+    list.forEach(({m,i})=>{
+      h+=`<button class="maprow" onclick="openMap(${i})"><span>${m.name}</span>${m.active?`<span class="rot">in rotation</span>`:""}</button>`;
+    });
+    h+=`</div>`;
+  });
+  $("mapList").innerHTML=h;
+}
+
+function openMap(i){
+  const m=MAPS[i];
+  const ranked=POOL.filter(n=>m.wr[n]!==undefined).sort((a,b)=>m.wr[b]-m.wr[a]);
+  let h=`<div class="card">`;
+  h+=`<button class="back" onclick="closeMap()">← All maps</button>`;
+  h+=`<div class="maphead"><span class="mapname">${m.name}</span><span class="mode">${m.mode}</span>${m.active?`<span class="rot">in rotation</span>`:""}</div>`;
+  h+=`<div class="sub" style="margin-top:4px">${(m.n/1e6).toFixed(2)}M ranked matches · newest match ${m.updated}</div>`;
+  h+=`<div class="maplayout"><img src="${mapPic(m)}" alt="${m.name} layout" loading="lazy" onerror="this.parentNode.style.display='none'"></div>`;
+  h+=`<table><tr><th></th><th>Brawler</th><th class="w">Win rate</th><th>Countered by</th></tr>`;
+  ranked.forEach((n,idx)=>{
+    const cs=countersFor(n,m.mode);
+    const chips=cs.length
+      ? cs.map(c=>`<span class="cchip">${c.en} <b>${c.w}%</b></span>`).join("")
+      : `<span class="cnone">no published counters</span>`;
+    h+=`<tr${m.wr[n]>=50?` class="good"`:""}><td class="n">${idx+1}</td><td class="br">${portImg(n)}${n}</td><td class="w">${m.wr[n]}%</td><td class="ctr">${chips}</td></tr>`;
+  });
+  h+=`</table></div>`;
+  $("mapDetail").innerHTML=h;
+  $("mapList").hidden=true;
+  window.scrollTo(0,0);
+}
+function closeMap(){ $("mapDetail").innerHTML=""; $("mapList").hidden=false; window.scrollTo(0,0); }
+
+function setView(v){
+  $("viewDraft").hidden = v!=="draft";
+  $("viewMaps").hidden  = v!=="maps";
+  $("tabDraft").className = v==="draft" ? "on" : "";
+  $("tabMaps").className  = v==="maps"  ? "on" : "";
+  if(v==="maps" && !$("mapList").innerHTML) renderMapList();
 }
 
 $("next").onclick=newDraft;
 $("reset").onclick=()=>{ stats={n:0,front:0,dom:0}; saveStats(); updateScore(); };
 $("t8").onclick=()=>setPool("core");
 $("tall").onclick=()=>setPool("all");
+$("tabDraft").onclick=()=>setView("draft");
+$("tabMaps").onclick=()=>setView("maps");
+
+// Footer counts follow the data rather than being written by hand.
+$("mapcount").textContent=MAPS.length;
+$("mapdate").textContent=MAPS.map(m=>m.updated).filter(Boolean).sort().slice(-1)[0]||"unknown";
 
 loadStats();
 newDraft();
