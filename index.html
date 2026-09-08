@@ -76,6 +76,7 @@ td.none{color:#5a5578;font-style:italic}
 td.per{line-height:1.5;white-space:nowrap}
 td.per .cnt{color:#7fe0a0}td.per .lose{color:#ff9c9c}td.per .none{color:#5a5578;font-style:italic}
 .src{color:#6f6990;font-size:10px;font-weight:400}
+td.note .cnt{color:#7fe0a0}td.note .lose{color:#ff9c9c}
 tr.mine td{background:#2b2547;color:#ffd75e;font-weight:600}
 tr.front td{color:#7fe0a0}
 tr.good td.w{color:#7fe0a0;font-weight:600}
@@ -138,8 +139,8 @@ td.ctr{line-height:1.7}
 
 <div class="foot">
 Win rates are all-league Ranked data from Brawl Planet, <span id="mapcount">—</span> ranked maps loaded, newest match in the sample <span id="mapdate">—</span>. Retired maps with no ranked data are left out. The <b>Maps</b> tab ranks your brawlers on any one map and lists who counters each of them.
-Two axes, never blended: <b>Map</b> is the brawler's win rate on this map. <b>Matchup</b> is the average of its win rate against each enemy brawler already on the board, using only pairings Brawl Planet publishes; with no published pairing it shows "no data" rather than a substitute number. Each pairing is taken from the most specific source available: this mode on the brawler's own page, this mode on the enemy's page (flipped, since one side's win is the other's loss), then the all-modes numbers the same way. Per-mode lists exist only where a brawler has enough matches in that mode, so some pairings fall back to all-modes numbers. Pairing data is Diamond 1 and above, pooled across leagues, refreshed hourly by the site.
-Status compares your pick only against brawlers you could still have taken. "Better pick" names one that was at least as good on both axes and better on one. A <b>good pick</b> is one nothing beat that way; there can be more than one, and choosing between them is a judgement about how much the matchup matters. Where either brawler has no matchup number, the comparison is on map alone. At pick 1 the board is empty, so it is map only.
+Two axes, never blended: <b>Map</b> is the brawler's win rate on this map. <b>Matchup</b> is the average of its win rate against each enemy brawler already on the board, using only pairings Brawl Planet publishes; with no published pairing it shows "no data" rather than a substitute number. Each pairing is taken from the most specific source available: this mode on the brawler's own page, this mode on the enemy's page (flipped, since one side's win is the other's loss), then the all-modes numbers the same way. Per-mode lists exist only where a brawler has enough matches in that mode, so some pairings fall back to all-modes numbers. Brawl Planet publishes only each brawler's strongest and weakest opponents, roughly sixteen per list, never a full table, so an even matchup in the middle of the range is published by neither side and shows as "no pairing". Edgar against Pierce is one of those. Pairing data is Diamond 1 and above, pooled across leagues, refreshed hourly by the site.
+The <b>Note</b> column only says what the ranking doesn't already show: a brawler that beats yours on both counts, or a pick that earns its place lower down the map ranking by having the better matchup. A brawler that merely sits higher on map rate gets no note, because the order says that. A <b>good pick</b>, shown in green, is one that nothing beat on both counts. Where either brawler has no matchup number the comparison is on map alone, and at pick 1 the board is empty, so it is map only.
 Grading only considers brawlers you own at Level 11 plus this season's free four — it answers "was this the best pick <em>available to you</em>", not "the best pick in the game".
 </div>
 
@@ -279,12 +280,13 @@ function matchup(name,enemies,mode){
   return {mu,n:ws.length,detail};
 }
 
-// x is the better pick than y: at least as good on both axes, strictly better on one.
-// If either side has no matchup number, the comparison is on map alone.
-function dominates(x,y){
-  if(x.mu===null||y.mu===null) return x.map>y.map;
-  return x.map>=y.map&&x.mu>=y.mu&&(x.map>y.map||x.mu>y.mu);
+// How x beats y, or null. "both" means it wins on map and matchup with real numbers on each side.
+// "map" means only the map rate could be compared, which is the same thing as being ranked higher.
+function beats(x,y){
+  if(x.mu===null||y.mu===null) return x.map>y.map ? "map" : null;
+  return (x.map>=y.map&&x.mu>=y.mu&&(x.map>y.map||x.mu>y.mu)) ? "both" : null;
 }
+function dominates(x,y){ return beats(x,y)!==null; }
 
 // Where a pairing came from: the game mode or "all modes", and whether it was read off the enemy's page.
 const srcNote=x=>`<span class="src">(${x.src}${x.rev?`, from ${x.en}'s page`:""})</span>`;
@@ -308,8 +310,11 @@ function answer(name){
   const c=cur, wr=c.map.wr;
   const rows=c.options.map(n=>{ const m=matchup(n,c.enemies,c.map.mode); return {n,map:wr[n],mu:m.mu,k:m.n,detail:m.detail}; });
   rows.forEach(r=>{
-    r.domBy=rows.filter(o=>o!==r&&dominates(o,r)).sort((a,b)=>b.map-a.map).map(o=>o.n);
-    r.front=r.domBy.length===0;
+    const beaten=rows.filter(o=>o!==r&&dominates(o,r)).sort((a,b)=>b.map-a.map);
+    r.domBy=beaten.map(o=>o.n);
+    // Only the ones that win on map AND matchup tell you something the ranking doesn't.
+    r.bothBy=beaten.filter(o=>beats(o,r)==="both").map(o=>o.n);
+    r.front=beaten.length===0;
   });
   const domList=l=>l.length<=3?l.join(", "):`${l.slice(0,3).join(", ")} +${l.length-3} more`;
   rows.sort((a,b)=>(a.front===b.front?0:a.front?-1:1)||b.map-a.map);
@@ -330,13 +335,17 @@ function answer(name){
     }
   } else {
     stats.dom++; cls="v-bad";
-    const d=rows.find(r=>r.n===me.domBy[0]);
-    const extra=me.domBy.length>1?` (also ${domList(me.domBy.slice(1))})`:"";
+    // Prefer a brawler that wins on both axes: that is a real argument, not just a higher ranking.
+    const d=rows.find(r=>r.n===(me.bothBy[0]||me.domBy[0]));
     const dm=+(d.map-me.map).toFixed(1);
-    const muPart=(me.mu===null||d.mu===null)?"":`, matchup ${d.mu}% vs ${me.mu}%`;
-    const counteredBy=me.detail.filter(x=>!x.none&&x.w!==undefined&&x.w<50).map(x=>x.en);
-    const alsoCountered=counteredBy.length?` And ${name} is countered by ${counteredBy.join(" and ")}.`:"";
-    txt=`<b>${d.n} was the better pick.</b> It was still available${extra}: ${dm} points better on map (${d.map}% vs ${me.map}%)${muPart}.${alsoCountered}`;
+    const counteredBy=me.detail.filter(x=>!x.none&&x.w!==undefined&&x.w<50).map(x=>`${x.en} (${x.w}%)`);
+    const alsoCountered=counteredBy.length?` ${name} is also countered by ${counteredBy.join(" and ")}.`:"";
+    if(me.bothBy.length){
+      const extra=me.bothBy.length>1?` Also better on both: ${domList(me.bothBy.slice(1))}.`:"";
+      txt=`<b>${d.n} was the better pick.</b> It beat ${name} on both counts: ${dm} points better on the map (${d.map}% vs ${me.map}%) and ${+(d.mu-me.mu).toFixed(1)} better against this enemy team (${d.mu}% vs ${me.mu}%).${extra}${alsoCountered}`;
+    } else {
+      txt=`<b>${d.n} was the better pick.</b> It wins ${dm} points more often on this map (${d.map}% vs ${me.map}%), and no published matchup gives ${name} a reason to go over it.${alsoCountered}`;
+    }
   }
   if(me.map<50) txt+=` Note ${name} is below a coin-flip on this map.`;
   if(c.enemies.length) txt+=`<div class="edges">${me.detail.map(edgeLabel).join("<br>")}</div>`;
@@ -347,13 +356,24 @@ function answer(name){
     if(x.w<50) return `<span class="lose">countered by ${x.en} ${x.w}%</span> ${srcNote(x)}`;
     return `even with ${x.en} ${x.w}% ${srcNote(x)}`;
   }).join("<br>");
+  // The note only says what the ranking doesn't already show. A brawler beaten purely on map rate is
+  // just lower down the list, so it gets nothing.
+  const topMap=Math.max(...rows.map(r=>r.map));
+  const noteFor=r=>{
+    // Only the good picks and your own pick get a note; every other row would just repeat the order.
+    if(!r.front&&r.n!==name) return "";
+    if(r.bothBy.length) return `<span class="lose">worse on both than ${domList(r.bothBy)}</span>`;
+    if(!r.front) return "";
+    if(r.map===topMap) return `<span class="cnt">best on this map</span>`;
+    return `<span class="cnt">better matchup than everything above it</span>`;
+  };
   const perCol=c.enemies.length?`<th>Per brawler</th>`:"";
-  h+=`<table><tr><th></th><th>Brawler</th><th class="w">Map</th><th class="w">Matchup</th>${perCol}<th>Status</th></tr>`;
+  h+=`<table><tr><th></th><th>Brawler</th><th class="w">Map</th><th class="w">Matchup</th>${perCol}<th>Note</th></tr>`;
   rows.forEach((r,i)=>{
     const rowc=r.n===name?"mine":(r.front?"front":"");
     const mu=r.mu===null?`<td class="w none">no data</td>`:`<td class="w">${r.mu}%<span style="color:#6f6990"> /${r.k}</span></td>`;
     const per=c.enemies.length?`<td class="s per">${perBrawler(r)}</td>`:"";
-    h+=`<tr class="${rowc}"><td class="n">${i+1}</td><td>${r.n}</td><td class="w">${r.map}%</td>${mu}${per}<td class="s">${r.front?"good pick":"better pick: "+domList(r.domBy)}</td></tr>`;
+    h+=`<tr class="${rowc}"><td class="n">${i+1}</td><td>${r.n}</td><td class="w">${r.map}%</td>${mu}${per}<td class="s note">${noteFor(r)}</td></tr>`;
   });
   h+=`</table>`;
   $("result").innerHTML=h;
