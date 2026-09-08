@@ -102,6 +102,9 @@ td.ctr{line-height:1.7}
 .cchip{display:inline-block;background:#3a2028;color:#ff9c9c;border-radius:6px;padding:2px 7px;margin:0 4px 4px 0;font-size:12px;white-space:nowrap}
 .cchip b{color:#ffc4c4;font-weight:700}
 .cnone{color:#5a5578;font-style:italic;font-size:12px}
+.bhead{display:flex;align-items:center;gap:12px;margin-bottom:4px}
+.bhead img{width:64px;height:64px;border-radius:10px;background:#1a1626;flex:none}
+td.w.lose{color:#ff9c9c;font-weight:600}
 .foot{color:#6f6990;font-size:11px;line-height:1.6;margin-top:18px;padding-top:14px;border-top:1px solid #262140}
 </style>
 
@@ -116,6 +119,7 @@ td.ctr{line-height:1.7}
 <div class="tabs">
   <button id="tabDraft" class="on">Draft trainer</button>
   <button id="tabMaps">Maps</button>
+  <button id="tabBrawlers">My brawlers</button>
 </div>
 
 <div id="viewDraft">
@@ -135,6 +139,11 @@ td.ctr{line-height:1.7}
 <div id="viewMaps" hidden>
   <div class="card" id="mapList"></div>
   <div id="mapDetail"></div>
+</div>
+
+<div id="viewBrawlers" hidden>
+  <div class="card" id="brawlerList"></div>
+  <div id="brawlerDetail"></div>
 </div>
 
 <div class="foot">
@@ -463,12 +472,54 @@ function openMap(i){
 }
 function closeMap(){ $("mapDetail").innerHTML=""; $("mapList").hidden=false; window.scrollTo(0,0); }
 
+// ---- My brawlers view -------------------------------------------------------
+
+function renderBrawlerList(){
+  let h=`<div class="maphead"><span class="mapname">My brawlers</span><span class="mode">${POOL.length}</span></div>`;
+  h+=`<div class="sub" style="margin-top:6px">Pick one to see everything that counters it, worst matchup first.</div>`;
+  h+=`<div class="grid">`;
+  POOL.slice().sort().forEach(n=>{
+    h+=`<button class="pick" onclick="openBrawler('${n.replace(/'/g,"\\'")}')">${portImg(n)}<span>${n}</span></button>`;
+  });
+  h+=`</div>`;
+  $("brawlerList").innerHTML=h;
+}
+
+function openBrawler(name){
+  // No map is chosen here, so these are the all-modes pairings.
+  const cs=countersFor(name);
+  const modes=Object.keys(MODE_KEY);
+  let h=`<div class="card">`;
+  h+=`<button class="back" onclick="closeBrawler()">← All my brawlers</button>`;
+  h+=`<div class="bhead">${portImg(name)}<div><div class="mapname">${name}</div>`;
+  h+=`<div class="sub">${cs.length} brawler${cs.length===1?"":"s"} counter${cs.length===1?"s":""} ${name}, out of ${Object.keys(EDGES).length} with a published pairing</div></div></div>`;
+  if(!cs.length){
+    h+=`<div class="turn">Nothing published counters ${name}. That usually means it is strong right now, but remember Brawl Planet only publishes each brawler's most extreme matchups.</div>`;
+  } else {
+    h+=`<table><tr><th></th><th>Counters ${name}</th><th class="w">${name} wins</th><th>Where it comes from</th></tr>`;
+    cs.forEach((c,i)=>{
+      const perMode=modes.map(m=>{const p=pairing(name,c.en,m); return p.w!==undefined&&p.src===m?`${m} ${p.w}%`:null;}).filter(Boolean);
+      h+=`<tr><td class="n">${i+1}</td><td class="br">${portImg(c.en)}${c.en}</td><td class="w lose">${c.w}%</td>`;
+      h+=`<td class="s">${srcNote(c)}${perMode.length?`<br><span class="src">by mode: ${perMode.join(" · ")}</span>`:""}</td></tr>`;
+    });
+    h+=`</table>`;
+  }
+  h+=`</div>`;
+  $("brawlerDetail").innerHTML=h;
+  $("brawlerList").hidden=true;
+  window.scrollTo(0,0);
+}
+function closeBrawler(){ $("brawlerDetail").innerHTML=""; $("brawlerList").hidden=false; window.scrollTo(0,0); }
+
 function setView(v){
-  $("viewDraft").hidden = v!=="draft";
-  $("viewMaps").hidden  = v!=="maps";
-  $("tabDraft").className = v==="draft" ? "on" : "";
-  $("tabMaps").className  = v==="maps"  ? "on" : "";
+  $("viewDraft").hidden    = v!=="draft";
+  $("viewMaps").hidden     = v!=="maps";
+  $("viewBrawlers").hidden = v!=="brawlers";
+  $("tabDraft").className    = v==="draft"    ? "on" : "";
+  $("tabMaps").className     = v==="maps"     ? "on" : "";
+  $("tabBrawlers").className = v==="brawlers" ? "on" : "";
   if(v==="maps" && !$("mapList").innerHTML) renderMapList();
+  if(v==="brawlers" && !$("brawlerList").innerHTML) renderBrawlerList();
 }
 
 $("next").onclick=newDraft;
@@ -477,6 +528,7 @@ $("t8").onclick=()=>setPool("core");
 $("tall").onclick=()=>setPool("all");
 $("tabDraft").onclick=()=>setView("draft");
 $("tabMaps").onclick=()=>setView("maps");
+$("tabBrawlers").onclick=()=>setView("brawlers");
 
 // Footer counts follow the data rather than being written by hand.
 $("mapcount").textContent=MAPS.length;
