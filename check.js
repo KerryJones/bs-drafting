@@ -35,15 +35,27 @@ for (const [k, e] of Object.entries(EDGES))
 const names = Object.keys(unknown).sort();
 console.log(`\nnames in edges not in FIELD or map pool (${names.length}): ${names.join(", ")}`);
 
-// Coverage: for each own brawler, how many FIELD opponents have a win rate, using the grader's lookup
-// (own page for the mode, enemy's page for the mode, own page overall, enemy's page overall).
+// Coverage: for each own brawler, how many FIELD opponents have a win rate, using the grader's lookup.
+const MATRIX = fs.existsSync(path.join(__dirname, "matrix.js")) ? load("matrix.js", "MATRIX") : {};
+const MODE_NAME = { bounty: "Bounty", brawlBall: "Brawl Ball", gemGrab: "Gem Grab", heist: "Heist", hotZone: "Hot Zone", knockout: "Knockout" };
 const hasW = (a, b, key) => {
-  const A = EDGES[a], B = EDGES[b];
+  const A = EDGES[a], B = EDGES[b], M = MATRIX[a] && MATRIX[a][b];
   return !!((key && A && A.modes && A.modes[key] && A.modes[key][b] && A.modes[key][b].w !== undefined) ||
             (key && B && B.modes && B.modes[key] && B.modes[key][a] && B.modes[key][a].w !== undefined) ||
+            (key && M && M.modes && M.modes[MODE_NAME[key]]) ||
             (A && A.vs[b] && A.vs[b].w !== undefined) ||
-            (B && B.vs[a] && B.vs[a].w !== undefined));
+            (B && B.vs[a] && B.vs[a].w !== undefined) ||
+            (M && M.w !== undefined));
 };
+
+// The matrix should cover every pool brawler against every brawler the enemy can draft.
+const matrixGaps = [];
+for (const k of POOL) {
+  if (!MATRIX[k]) { console.log(`NO MATRIX row for pool brawler "${k}"`); bad++; continue; }
+  const miss = FIELD.filter(f => f !== k && !MATRIX[k][f]);
+  if (miss.length) matrixGaps.push(`${k} (${miss.join(", ")})`);
+}
+console.log(`matrix: ${Object.keys(MATRIX).length} pool brawlers` + (matrixGaps.length ? `; opponents missing for ${matrixGaps.join("; ")}` : "; every field opponent present"));
 const own = POOL;
 const modeKeys = new Set();
 for (const e of Object.values(EDGES)) for (const m of Object.keys(e.modes || {})) modeKeys.add(m);

@@ -139,13 +139,14 @@ td.ctr{line-height:1.7}
 
 <div class="foot">
 Win rates are all-league Ranked data from Brawl Planet, <span id="mapcount">—</span> ranked maps loaded, newest match in the sample <span id="mapdate">—</span>. Retired maps with no ranked data are left out. The <b>Maps</b> tab ranks your brawlers on any one map and lists who counters each of them.
-Two axes, never blended: <b>Map</b> is the brawler's win rate on this map. <b>Matchup</b> is the average of its win rate against each enemy brawler already on the board, using only pairings Brawl Planet publishes; with no published pairing it shows "no data" rather than a substitute number. Each pairing is taken from the most specific source available: this mode on the brawler's own page, this mode on the enemy's page (flipped, since one side's win is the other's loss), then the all-modes numbers the same way. Per-mode lists exist only where a brawler has enough matches in that mode, so some pairings fall back to all-modes numbers. Brawl Planet publishes only each brawler's strongest and weakest opponents, roughly sixteen per list, never a full table, so an even matchup in the middle of the range is published by neither side and shows as "no pairing". Edgar against Pierce is one of those. Pairing data is Diamond 1 and above, pooled across leagues, refreshed hourly by the site.
+Two axes, never blended: <b>Map</b> is the brawler's win rate on this map. <b>Matchup</b> is the average of its win rate against each enemy brawler already on the board, using only pairings Brawl Planet publishes; with no published pairing it shows "no data" rather than a substitute number. Each pairing is taken from the most specific source available: this mode on the brawler's own page, this mode on the enemy's page (flipped, since one side's win is the other's loss), then the all-modes numbers the same way. Per-mode lists exist only where a brawler has enough matches in that mode, so some pairings fall back to all-modes numbers. Brawl Planet publishes only each brawler's strongest and weakest opponents, never a full table, so the middle of the range is missing from it. Those gaps are filled from Brawl Time Ninja, which holds every pairing with the number of matches behind it. Each figure is labelled with its mode, its source and, for Brawl Time Ninja, its sample size. The two are never averaged: Brawl Planet is Ranked at Diamond 1 and above and matches the map win rates, while Brawl Time Ninja covers all players and all trophy ranges. Pairing data is Diamond 1 and above, pooled across leagues, refreshed hourly by the site.
 The <b>Note</b> column only says what the ranking doesn't already show: a brawler that beats yours on both counts, or a pick that earns its place lower down the map ranking by having the better matchup. A brawler that merely sits higher on map rate gets no note, because the order says that. A <b>good pick</b>, shown in green, is one that nothing beat on both counts. Where either brawler has no matchup number the comparison is on map alone, and at pick 1 the board is empty, so it is map only.
 Grading only considers brawlers you own at Level 11 plus this season's free four — it answers "was this the best pick <em>available to you</em>", not "the best pick in the game".
 </div>
 
 <script src="mapdata.js"></script>
 <script src="edges.js"></script>
+<script src="matrix.js"></script>
 <script>
 const CORE8=["Surge","Starr Nova","8-Bit","Brock","Edgar","Emz","Mortis","Nori"];
 const FREE=["Nori","Kaze","Willow","Trunk"];
@@ -253,22 +254,30 @@ function render(){
 // Brawl Planet publishes per-mode pairings under these keys (only for brawlers with enough matches in that mode).
 const MODE_KEY={"Bounty":"bounty","Brawl Ball":"brawlBall","Gem Grab":"gemGrab","Heist":"heist","Hot Zone":"hotZone","Knockout":"knockout"};
 
-// One pairing: my brawler vs an enemy. Looks in four places, most specific first, and takes the first
-// with a win rate:  my page for this mode, the enemy's page for this mode (flipped), my page overall,
-// the enemy's page overall (flipped). Flipping = 100 − w and −d, since one side's win is the other's loss.
+// One pairing: my brawler vs an enemy. Two sources, kept apart and never averaged.
+//   EDGES  — Brawl Planet, Ranked at Diamond 1 and above, but only each brawler's strongest and
+//            weakest opponents, so most pairings are missing. Carries d, the advantage over what raw
+//            strength predicts, which is what tells a real counter from a strong brawler.
+//   MATRIX — Brawl Time Ninja, every pairing with the match count behind it, but all players and all
+//            trophy ranges. No d.
+// Preference runs most specific first, and Brawl Planet wins ties because it matches the Ranked map
+// win rates the other axis uses. Flipping a pairing read off the enemy's page = 100 − w, and −d.
 function pairing(name,en,mode){
   const key=MODE_KEY[mode];
   const mine=EDGES[name], theirs=EDGES[en];
   const cands=[];
-  if(key&&mine&&mine.modes&&mine.modes[key]&&mine.modes[key][en]) cands.push({e:mine.modes[key][en],src:mode,rev:false});
-  if(key&&theirs&&theirs.modes&&theirs.modes[key]&&theirs.modes[key][name]) cands.push({e:theirs.modes[key][name],src:mode,rev:true});
-  if(mine&&mine.vs[en]) cands.push({e:mine.vs[en],src:"all modes",rev:false});
-  if(theirs&&theirs.vs[name]) cands.push({e:theirs.vs[name],src:"all modes",rev:true});
+  if(key&&mine&&mine.modes&&mine.modes[key]&&mine.modes[key][en]) cands.push({e:mine.modes[key][en],src:mode,rev:false,from:"Brawl Planet"});
+  if(key&&theirs&&theirs.modes&&theirs.modes[key]&&theirs.modes[key][name]) cands.push({e:theirs.modes[key][name],src:mode,rev:true,from:"Brawl Planet"});
+  const mx=(typeof MATRIX!=="undefined")&&MATRIX[name]&&MATRIX[name][en];
+  if(mx&&mx.modes&&mx.modes[mode]) cands.push({e:mx.modes[mode],src:mode,rev:false,from:"Brawl Time",n:mx.modes[mode].n});
+  if(mine&&mine.vs[en]) cands.push({e:mine.vs[en],src:"all modes",rev:false,from:"Brawl Planet"});
+  if(theirs&&theirs.vs[name]) cands.push({e:theirs.vs[name],src:"all modes",rev:true,from:"Brawl Planet"});
+  if(mx) cands.push({e:mx,src:"all modes",rev:false,from:"Brawl Time",n:mx.n});
   const pick=cands.find(c=>c.e.w!==undefined)||cands[0];
   if(!pick) return {en,none:true};
   const d=pick.e.d===undefined?undefined:(pick.rev?-pick.e.d:pick.e.d);
   const w=pick.e.w===undefined?undefined:(pick.rev?+(100-pick.e.w).toFixed(1):pick.e.w);
-  return {en,d,w,src:pick.src,rev:pick.rev};
+  return {en,d,w,src:pick.src,rev:pick.rev,from:pick.from,n:pick.n};
 }
 
 // Matchup axis: average of the win rate against each enemy on the board.
@@ -289,7 +298,7 @@ function beats(x,y){
 function dominates(x,y){ return beats(x,y)!==null; }
 
 // Where a pairing came from: the game mode or "all modes", and whether it was read off the enemy's page.
-const srcNote=x=>`<span class="src">(${x.src}${x.rev?`, from ${x.en}'s page`:""})</span>`;
+const srcNote=x=>`<span class="src">(${x.src}, ${x.from}${x.n?` · ${x.n>=1000?(x.n/1000).toFixed(0)+"k":x.n} matches`:""}${x.rev?`, from ${x.en}'s page`:""})</span>`;
 
 function edgeLabel(x){
   if(x.none) return `vs ${x.en}: <span class="none">no data</span>`;
@@ -409,9 +418,13 @@ function setPool(p){
 // ---- Maps view --------------------------------------------------------------
 
 // Every brawler that beats this one on this map's mode, worst pairing first.
+// Considers every brawler either source has a number for, not just the ones the simulator drafts,
+// because this tab is a reference for real games where anyone can turn up.
 function countersFor(name,mode){
+  const all=new Set(Object.keys(EDGES));
+  if(typeof MATRIX!=="undefined"&&MATRIX[name]) Object.keys(MATRIX[name]).forEach(n=>all.add(n));
   const out=[];
-  Object.keys(EDGES).forEach(en=>{
+  all.forEach(en=>{
     if(en===name) return;
     const p=pairing(name,en,mode);
     if(!p.none&&p.w!==undefined&&p.w<50) out.push(p);
