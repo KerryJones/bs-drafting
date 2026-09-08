@@ -9,11 +9,15 @@ serves the repository root, so pushing to `main` publishes.
 ./refresh.sh
 ```
 
-Rebuilds every data file, then runs the checks. Takes roughly twenty minutes because the scrapers
+Rebuilds every data file, then runs the checks. Takes roughly fifteen minutes because the scrapers
 space their requests out on purpose. Nothing needs a key or a login. Review the diff, then commit and
 push to publish.
 
-`./refresh.sh maps`, `edges`, or `matrix` rebuilds one file; `./refresh.sh check` only verifies.
+`./refresh.sh maps` or `edges` rebuilds one file; `./refresh.sh check` only verifies.
+
+**Read the check output before pushing.** The head-to-head test is the important one: it confirms the
+win rates are genuine matchup figures by proving that every pairing published from both sides sums to
+100. A source that fails it cannot be compared against 50% and must not be used.
 
 Worth doing every couple of weeks, and after any balance patch. Every file records the date its data
 reaches, and the footer of the page shows it.
@@ -25,7 +29,6 @@ reaches, and the footer of the page shows it.
 | `index.html` | The whole app: draft trainer and Maps tab | by hand |
 | `mapdata.js` | Per-map Ranked win rates for the pool, one entry per map | `scrape-maps.js` |
 | `edges.js` | Counters and teammates per brawler, with `d` | `scrape.js` |
-| `matrix.js` | Every brawler-versus-brawler win rate, per mode | `scrape-matrix.js` |
 | `check.js` | Cross-checks the three data files against each other | run by `refresh.sh` |
 | `check-images.js` | Confirms every portrait and map picture still resolves | run by `refresh.sh` |
 
@@ -46,22 +49,26 @@ eight strongest and eight weakest opponents overall and per mode, each with two 
 Because it publishes only the extremes, most pairings are absent from it entirely. Edgar against Pierce
 is on neither brawler's page, in any mode.
 
-**Brawl Time Ninja** (`matrix.js`) fills those gaps. Its analytics cube holds every pairing with the
-match count behind it. `brawltime.ninja/api/auth.getToken` hands out the same short-lived token the
-site's own pages use, and one query per brawler returns that brawler against all ~106 others across
-every mode. The catch is population: this covers all players and all trophy ranges, not Ranked at
-Diamond and above, so its numbers run higher and are not interchangeable with Brawl Planet's.
-
-The trainer keeps them apart and never averages them. For a given pairing it takes, in order: Brawl
-Planet for this mode, Brawl Planet for this mode off the enemy's page, Brawl Time Ninja for this mode,
-then the same three for all modes combined. Every figure on screen is labelled with the mode it came
-from, which source, and the sample size where there is one.
+Its numbers pass the head-to-head test exactly: across 1,177 pairings published from both sides, every
+one sums to 100.0. For a given pairing the trainer takes, in order: this mode from the brawler's own
+page, this mode from the enemy's page flipped, then the same two for all modes combined. Every figure
+on screen is labelled with the mode it came from.
 
 Portraits and map pictures are hotlinked from the public Google storage bucket both sites use. If they
 ever move, `check-images.js` will say so.
 
 ## Dead ends, so nobody retries them
 
+- **Brawl Time Ninja's matchup cube looks complete and is unusable.** Its `brawlerEnemies` cube returns
+  every pairing per mode with match counts, reachable through the public token endpoint at
+  `brawltime.ninja/api/auth.getToken`, and it was wired in on 2026-09-08 before being pulled out the
+  same day. Its "win rate" is not a head-to-head figure. Across 406 pairs held in both directions the
+  two sides averaged 123.6 instead of 100, and every brawler's mean sat near 63% instead of 50%, so
+  comparing it to 50% called Mandy a counter to Edgar when Edgar in fact beats Mandy. Centring each
+  brawler on its own average does not rescue it either: the antisymmetry correlation is 0.009, where
+  1.0 would be perfect, so there is no head-to-head signal in it at all. The likely cause is that
+  their sample is drawn from tracked players, who win far more often than average, and each direction
+  of a pair comes from a different set of battle logs. `check.js` now runs this test on every source.
 - Brawlify and its API refuse requests outright; BrawlAce returns errors; brawlstats.com does not
   resolve. Pixelcrux has map and progress tools but no matchup data.
 - The official Supercell API gives player and battle-log data, not aggregates. Building matchups from

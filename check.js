@@ -35,27 +35,36 @@ for (const [k, e] of Object.entries(EDGES))
 const names = Object.keys(unknown).sort();
 console.log(`\nnames in edges not in FIELD or map pool (${names.length}): ${names.join(", ")}`);
 
+// Are the win rates actually head-to-head? A real one means when A beats B x% of the time, B beats A
+// (100 - x)% of the time, so every pairing published from both sides must sum to 100. This is the test
+// that catches a source whose "win rate" is measured on some other population: a Brawl Time Ninja pull
+// added in Sept 2026 averaged 123.6 and had to be thrown away. Never trust a new source without it.
+{
+  const sums = [];
+  for (const a of Object.keys(EDGES)) for (const b of Object.keys(EDGES)) {
+    if (a >= b) continue;
+    const ab = EDGES[a].vs[b], ba = EDGES[b].vs[a];
+    if (ab && ba && ab.w !== undefined && ba.w !== undefined) sums.push(ab.w + ba.w);
+    for (const k of Object.keys(EDGES[a].modes || {})) {
+      const mab = (EDGES[a].modes[k] || {})[b], mba = ((EDGES[b].modes || {})[k] || {})[a];
+      if (mab && mba && mab.w !== undefined && mba.w !== undefined) sums.push(mab.w + mba.w);
+    }
+  }
+  const avg = sums.reduce((x, y) => x + y, 0) / sums.length;
+  const off = sums.filter(s => Math.abs(s - 100) > 1).length;
+  const ok = Math.abs(avg - 100) < 0.5 && off === 0;
+  console.log(`head-to-head test: ${sums.length} pairings held from both sides, mean sum ${avg.toFixed(1)}, ${off} off by more than a point — ${ok ? "PASS" : "FAIL"}`);
+  if (!ok) bad++;
+}
+
 // Coverage: for each own brawler, how many FIELD opponents have a win rate, using the grader's lookup.
-const MATRIX = fs.existsSync(path.join(__dirname, "matrix.js")) ? load("matrix.js", "MATRIX") : {};
-const MODE_NAME = { bounty: "Bounty", brawlBall: "Brawl Ball", gemGrab: "Gem Grab", heist: "Heist", hotZone: "Hot Zone", knockout: "Knockout" };
 const hasW = (a, b, key) => {
-  const A = EDGES[a], B = EDGES[b], M = MATRIX[a] && MATRIX[a][b];
+  const A = EDGES[a], B = EDGES[b];
   return !!((key && A && A.modes && A.modes[key] && A.modes[key][b] && A.modes[key][b].w !== undefined) ||
             (key && B && B.modes && B.modes[key] && B.modes[key][a] && B.modes[key][a].w !== undefined) ||
-            (key && M && M.modes && M.modes[MODE_NAME[key]]) ||
             (A && A.vs[b] && A.vs[b].w !== undefined) ||
-            (B && B.vs[a] && B.vs[a].w !== undefined) ||
-            (M && M.w !== undefined));
+            (B && B.vs[a] && B.vs[a].w !== undefined));
 };
-
-// The matrix should cover every pool brawler against every brawler the enemy can draft.
-const matrixGaps = [];
-for (const k of POOL) {
-  if (!MATRIX[k]) { console.log(`NO MATRIX row for pool brawler "${k}"`); bad++; continue; }
-  const miss = FIELD.filter(f => f !== k && !MATRIX[k][f]);
-  if (miss.length) matrixGaps.push(`${k} (${miss.join(", ")})`);
-}
-console.log(`matrix: ${Object.keys(MATRIX).length} pool brawlers` + (matrixGaps.length ? `; opponents missing for ${matrixGaps.join("; ")}` : "; every field opponent present"));
 const own = POOL;
 const modeKeys = new Set();
 for (const e of Object.values(EDGES)) for (const m of Object.keys(e.modes || {})) modeKeys.add(m);
