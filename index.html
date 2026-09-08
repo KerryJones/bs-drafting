@@ -1,0 +1,359 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ranked Draft Trainer — Nyfael</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#12101c;color:#e8e6f0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:16px;max-width:900px;margin:0 auto;-webkit-text-size-adjust:100%}
+h1{font-size:19px;letter-spacing:-.02em}
+.sub{color:#8b86a3;font-size:12px;margin-top:2px}
+.bar{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}
+.score{text-align:right;font-size:12px;color:#8b86a3;white-space:nowrap}
+.score b{display:block;font-size:22px;color:#ffd75e;line-height:1.1}
+.card{background:#1c1930;border:1px solid #2e2947;border-radius:14px;padding:14px;margin-bottom:12px}
+.maphead{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.mapname{font-size:20px;font-weight:700}
+.mode{font-size:11px;text-transform:uppercase;letter-spacing:.08em;background:#332c52;color:#c9c2e8;padding:3px 8px;border-radius:20px}
+.lbl{font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:#7d7799;margin:12px 0 5px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:12px;padding:4px 9px;border-radius:7px;background:#262140;color:#b8b2d4}
+.chip.ban{background:#3a1d24;color:#e8909c;text-decoration:line-through}
+.chip.blue{background:#1b2f4d;color:#8fc4ff}
+.chip.red{background:#43202a;color:#ff9c9c}
+.chip.you{background:#ffd75e;color:#191428;font-weight:700;text-decoration:none}
+/* draft banner, styled after the in-game ranked draft screen */
+.dboard{--card:clamp(52px,9.5vw,88px);position:relative;margin-top:8px;border-radius:12px;overflow:hidden;
+  background:linear-gradient(104deg,#1f7bea 0 49.2%,#0d4fa8 49.2% 50%,#7a1520 50% 50.8%,#e0343a 50.8% 100%);
+  padding:26px 8px 24px;display:grid;grid-template-columns:auto 1fr auto 1fr auto;align-items:center;gap:6px;
+  font-family:"Arial Black",Impact,"Segoe UI",system-ui,sans-serif}
+.dboard .tl{position:absolute;top:5px;font-size:11px;font-weight:900;color:#fff;letter-spacing:.06em;text-shadow:0 2px 0 rgba(0,0,0,.45);font-style:italic}
+.dboard .tl.blue{left:10px}.dboard .tl.red{right:10px}
+.dbans{display:flex;flex-direction:column;gap:5px;align-self:center}
+.dban{position:relative;width:34px;height:34px}
+.dban img{width:30px;height:30px;border-radius:50%;display:block;border:2px solid rgba(0,0,0,.45);background:#222}
+.dban .no{position:absolute;right:0;bottom:0;width:13px;height:13px;border-radius:50%;border:2px solid #ff2d3a;background:#fff;box-sizing:border-box}
+.dban .no::after{content:"";position:absolute;left:-1px;right:-1px;top:50%;height:2px;margin-top:-1px;background:#ff2d3a;transform:rotate(-45deg)}
+.dbans.blue .dban{border-color:#0b3d80}.dbans.red .dban{border-color:#6e0f16}
+.dteam{display:flex;gap:5px;justify-content:flex-end}
+.dteam.red{justify-content:flex-start}
+.dcard{position:relative;width:var(--card);height:var(--card);border-radius:8px;overflow:visible;flex:none;background:#2a2437;box-shadow:0 3px 0 rgba(0,0,0,.35)}
+.dcard .face{position:absolute;inset:0;border-radius:8px;overflow:hidden;background:#3a3350;border:2px solid rgba(0,0,0,.5)}
+.dcard .face img{width:100%;height:100%;object-fit:cover;display:block}
+.dcard .nm{position:absolute;left:0;right:0;top:100%;margin-top:3px;color:#fff;font-size:calc(var(--card)*.14);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:900;text-shadow:0 1px 0 rgba(0,0,0,.6)}
+.dcard.empty .face{background:#1a1626;display:flex;align-items:center;justify-content:center}
+.dcard.empty .q{width:60%;height:60%;border-radius:50%;background:#2b2540;color:#5d5678;font-size:calc(var(--card)*.42);font-weight:900;display:flex;align-items:center;justify-content:center}
+.dcard.now .face{border-color:#ffd75e;box-shadow:0 0 0 2px #ffd75e,0 0 14px #ffd75e88}
+.dcard.now .q{color:#ffd75e;background:#3a3320}
+.dcard .crown{position:absolute;left:50%;top:-20px;transform:translateX(-50%);font-size:16px;line-height:1;filter:drop-shadow(0 1px 0 rgba(0,0,0,.6))}
+.dvs{align-self:center;font-size:clamp(16px,3.6vw,28px);font-weight:900;color:#fff;font-style:italic;letter-spacing:-.04em;text-shadow:0 3px 0 rgba(0,0,0,.5),0 0 8px rgba(0,0,0,.4);padding:0 4px;transform:skewX(-8deg)}
+.picknote{margin-top:6px;font-size:11px;color:#8b86a3}
+.picknote b{color:#e8909c;font-weight:600}
+.turn{margin-top:12px;padding:10px;border-radius:9px;background:#241f3d;border-left:3px solid #ffd75e;font-size:13px}
+.maplayout{margin-top:10px;text-align:center;background:#171331;border-radius:10px;padding:8px}
+.maplayout img{max-height:230px;max-width:100%;width:auto;border-radius:6px;display:inline-block}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(94px,1fr));gap:6px;margin-top:8px}
+button.pick{background:#262140;border:1px solid #3a3358;color:#ded9f0;border-radius:9px;padding:6px 4px 7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:5px}
+button.pick img{width:56px;height:56px;border-radius:8px;display:block;background:#1a1626}
+button.pick:hover{background:#332c56;border-color:#ffd75e}
+button.pick:disabled{opacity:.22;cursor:not-allowed}
+.verdict{border-radius:11px;padding:12px;margin-top:10px;font-size:14px;line-height:1.5}
+.v-best{background:#16331f;border:1px solid #2c6b3c}
+.v-ok{background:#33301a;border:1px solid #6b5f2c}
+.v-bad{background:#331a1f;border:1px solid #6b2c38}
+.verdict b{font-size:15px}
+.verdict ul{margin:6px 0 0 18px}
+.verdict li{margin:2px 0}
+.edges{margin-top:8px;font-size:12px;color:#a9a3c8;line-height:1.6}
+.edges .cnt{color:#7fe0a0}.edges .soft{color:#ffd75e}.edges .lose{color:#ff9c9c}
+table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}
+th{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#7d7799;text-align:left;padding:4px 6px;font-weight:600}
+th.w,td.w{text-align:right;font-variant-numeric:tabular-nums}
+td{padding:5px 6px;border-bottom:1px solid #2a2544}
+td.n{color:#6f6990;width:26px}
+td.w{color:#a9a3c8}
+td.s{font-size:11px;color:#8b86a3}
+td.none{color:#5a5578;font-style:italic}
+td.per{line-height:1.5;white-space:nowrap}
+td.per .cnt{color:#7fe0a0}td.per .lose{color:#ff9c9c}td.per .none{color:#5a5578;font-style:italic}
+.src{color:#6f6990;font-size:10px;font-weight:400}
+tr.mine td{background:#2b2547;color:#ffd75e;font-weight:600}
+tr.front td{color:#7fe0a0}
+tr.front td.s{color:#5fb87f}
+.actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+button.go{flex:1;min-width:150px;background:#ffd75e;color:#191428;border:0;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit}
+button.alt{background:transparent;border:1px solid #3a3358;color:#a9a3c8;border-radius:10px;padding:13px 14px;font-size:13px;cursor:pointer;font-family:inherit}
+.toggle{display:flex;gap:6px;margin-top:8px}
+.toggle button{flex:1;background:#201b38;border:1px solid #322c50;color:#8b86a3;border-radius:8px;padding:7px;font-size:12px;cursor:pointer;font-family:inherit}
+.toggle button.on{background:#ffd75e;color:#191428;border-color:#ffd75e;font-weight:600}
+.foot{color:#6f6990;font-size:11px;line-height:1.6;margin-top:18px;padding-top:14px;border-top:1px solid #262140}
+</style>
+
+<div class="bar">
+  <div>
+    <h1>Ranked Draft Trainer</h1>
+    <div class="sub">Your Level 11 pool + season-free brawlers, graded on map win rate and matchup win rate</div>
+  </div>
+  <div class="score"><b id="pct">—</b><span id="tally">no drafts yet</span></div>
+</div>
+
+<div class="toggle">
+  <button id="t8" class="on">Core 8 only</button>
+  <button id="tall">Full pool (29)</button>
+</div>
+
+<div class="card" id="draft"></div>
+<div id="result"></div>
+<div class="actions">
+  <button class="go" id="next">New draft</button>
+  <button class="alt" id="reset">Reset score</button>
+</div>
+
+<div class="foot">
+Win rates are all-league Ranked data from Brawl Planet (Sept 2026), ~1.9M matches per map. Eight maps loaded: Kaboom Canyon, Hot&nbsp;Zone Ring of Fire, Belle's Rock, Flaring Phoenix, Undermine, Hard Rock Mine, Sneaky Fields, Hideout.
+Two axes, never blended: <b>Map</b> is the brawler's win rate on this map. <b>Matchup</b> is the average of its win rate against each enemy brawler already on the board, using only pairings Brawl Planet publishes; with no published pairing it shows "no data" rather than a substitute number. Each pairing is taken from the most specific source available: this mode on the brawler's own page, this mode on the enemy's page (flipped, since one side's win is the other's loss), then the all-modes numbers the same way. Per-mode lists exist only where a brawler has enough matches in that mode, so some pairings fall back to all-modes numbers. Pairing data is Diamond 1 and above, pooled across leagues, refreshed hourly by the site.
+Status compares your pick only against brawlers you could still have taken. "Better pick" names one that was at least as good on both axes and better on one. A <b>good pick</b> is one nothing beat that way; there can be more than one, and choosing between them is a judgement about how much the matchup matters. Where either brawler has no matchup number, the comparison is on map alone. At pick 1 the board is empty, so it is map only.
+Grading only considers brawlers you own at Level 11 plus this season's free four — it answers "was this the best pick <em>available to you</em>", not "the best pick in the game".
+</div>
+
+<script src="mapdata.js"></script>
+<script src="edges.js"></script>
+<script>
+const CORE8=["Surge","Starr Nova","8-Bit","Brock","Edgar","Emz","Mortis","Nori"];
+const FREE=["Nori","Kaze","Willow","Trunk"];
+
+// Names the simulated players draft from. Includes meta picks you don't own,
+// so bans and steals bite the way they do in a real lobby.
+const FIELD=["Amber","Shade","Wendy","Gus","Ash","El Primo","Rico","Stu","Damian","Piper","Tick",
+"Byron","Max","Meg","Griff","Pierce","Colt","Mandy","Meeple","Bo","Gene","Kit","Spike","Penny",
+"Kenji","Mina","Tara","Bull","Fang","Otis","Carl","Sirius","Grom","Pearl","Najia","Sprout","Lily",
+"Mico","Squeak","Dynamike","Chester","Belle","Bea","Nani","Jessie","Berry","Doug","Buzz","Crow",
+"Mortis","Edgar","Leon","Brock","Surge","Emz","8-Bit","Bibi","Nori"];
+
+const mapImg=name=>name.toLowerCase().replace(/[^a-z0-9]/g,"");
+// Brawler portraits live in the same public bucket as the map images; slug = lowercase, spaces to underscores.
+const portrait=name=>`https://storage.googleapis.com/brawlanalyzer-public/brawlers/${name.toLowerCase().replace(/ /g,"_")}.png`;
+const portImg=name=>`<img src="${portrait(name)}" alt="${name}" loading="lazy">`;
+
+let pool="core", cur=null, answered=false, stats={n:0,front:0,dom:0};
+const $=id=>document.getElementById(id);
+const rnd=a=>a[Math.floor(Math.random()*a.length)];
+
+function myPool(){
+  const all=Object.keys(MAPS[0].wr);
+  return pool==="core" ? CORE8.slice() : all;
+}
+
+function newDraft(){
+  const map=rnd(MAPS);
+  const names=Object.keys(map.wr);
+
+  // Bans: each team bans 3, weighted toward brawlers that are actually strong on this map.
+  const banCands=FIELD.concat(names).filter((v,i,a)=>a.indexOf(v)===i);
+  const wsort=()=>banCands.slice().sort((a,b)=>((map.wr[b]||48)+Math.random()*14)-((map.wr[a]||48)+Math.random()*14));
+  const myBans=wsort().slice(0,3);
+  const theirBans=wsort().slice(0,3);
+  const bans=myBans.concat(theirBans).filter((v,i,a)=>a.indexOf(v)===i);
+  const dupes=6-bans.length;
+
+  // You are always blue. Blue picks are slots 1, 4, 5.
+  const slot=rnd([1,4,5]);
+  const taken=[];
+  const board=[];
+  const avail=()=>FIELD.filter(n=>!bans.includes(n)&&!taken.includes(n));
+  for(let s=1;s<=6;s++){
+    const team=(s===1||s===4||s===5)?"blue":"red";
+    if(s===slot){ board.push({s,team,name:null,you:true}); continue; }
+    const opts=avail();
+    opts.sort((a,b)=>((map.wr[b]||47)+Math.random()*11)-((map.wr[a]||47)+Math.random()*11));
+    const n=opts[Math.floor(Math.random()*3)]||opts[0];
+    taken.push(n);
+    board.push({s,team,name:n});
+  }
+  const beforeYou=board.filter(b=>b.s<slot&&b.name).map(b=>b.name);
+  const enemies=board.filter(b=>b.s<slot&&b.team==="red").map(b=>b.name);
+  const gone=bans.concat(beforeYou);
+  const options=myPool().filter(n=>!gone.includes(n));
+  cur={map,bans,myBans,theirBans,dupes,slot,board,enemies,gone,options};
+  answered=false;
+  render();
+  $("result").innerHTML="";
+}
+
+function render(){
+  const c=cur, m=c.map;
+  let h=`<div class="maphead"><span class="mapname">${m.name}</span><span class="mode">${m.mode}</span></div>`;
+  h+=`<div class="maplayout"><img src="https://storage.googleapis.com/brawlanalyzer-public/map_images/${mapImg(m.name)}.png" alt="${m.name} layout" loading="lazy" onerror="this.parentNode.style.display='none'"></div>`;
+  const banNote=c.dupes?` — ${c.dupes} ban${c.dupes>1?"s":""} collided across teams`:"";
+  // Draft banner. First pick sits outermost on each side, like the in-game screen.
+  const card=b=>{
+    if(b.you) return `<div class="dcard empty now" title="Pick ${b.s}: you"><span class="crown">👑</span><div class="face"><span class="q">?</span></div><div class="nm">YOU</div></div>`;
+    if(b.s>c.slot) return `<div class="dcard empty" title="Pick ${b.s}"><div class="face"><span class="q">?</span></div></div>`;
+    return `<div class="dcard" title="Pick ${b.s}: ${b.name}"><div class="face">${portImg(b.name)}</div><div class="nm">${b.name}</div></div>`;
+  };
+  const banIcons=list=>list.map(b=>`<div class="dban" title="Banned: ${b}">${portImg(b)}<span class="no"></span></div>`).join("");
+  const blue=c.board.filter(b=>b.team==="blue").map(card).join("");
+  const red=c.board.filter(b=>b.team==="red").reverse().map(card).join("");
+  h+=`<div class="lbl">Draft — ${c.bans.length} unique bans from 6 slots${banNote}</div>`;
+  h+=`<div class="dboard"><span class="tl blue">BLUE TEAM</span><span class="tl red">RED TEAM</span>`;
+  h+=`<div class="dbans blue">${banIcons(c.myBans)}</div><div class="dteam blue">${blue}</div>`;
+  h+=`<div class="dvs">VS</div>`;
+  h+=`<div class="dteam red">${red}</div><div class="dbans red">${banIcons(c.theirBans)}</div>`;
+  h+=`</div><div class="picknote">Banned: <b>${c.bans.join("</b> · <b>")}</b></div>`;
+  const pos=c.slot===1?"first overall — nothing on the board":c.slot===4?"fourth pick — you've seen both enemy picks":"fifth pick — last blue pick";
+  h+=`<div class="turn">You are <b>blue, pick ${c.slot}</b> — ${pos}.</div>`;
+  h+=`<div class="lbl">Your pick</div><div class="grid">`;
+  myPool().sort().forEach(n=>{
+    const dead=c.gone.includes(n)||answered;
+    h+=`<button class="pick" ${dead?"disabled":""} onclick="answer('${n.replace(/'/g,"\\'")}')">${portImg(n)}<span>${n}</span></button>`;
+  });
+  h+=`</div>`;
+  $("draft").innerHTML=h;
+}
+
+// ---- grading ---------------------------------------------------------------
+
+// Brawl Planet publishes per-mode pairings under these keys (only for brawlers with enough matches in that mode).
+const MODE_KEY={"Bounty":"bounty","Brawl Ball":"brawlBall","Gem Grab":"gemGrab","Heist":"heist","Hot Zone":"hotZone","Knockout":"knockout"};
+
+// One pairing: my brawler vs an enemy. Looks in four places, most specific first, and takes the first
+// with a win rate:  my page for this mode, the enemy's page for this mode (flipped), my page overall,
+// the enemy's page overall (flipped). Flipping = 100 − w and −d, since one side's win is the other's loss.
+function pairing(name,en,mode){
+  const key=MODE_KEY[mode];
+  const mine=EDGES[name], theirs=EDGES[en];
+  const cands=[];
+  if(key&&mine&&mine.modes&&mine.modes[key]&&mine.modes[key][en]) cands.push({e:mine.modes[key][en],src:mode,rev:false});
+  if(key&&theirs&&theirs.modes&&theirs.modes[key]&&theirs.modes[key][name]) cands.push({e:theirs.modes[key][name],src:mode,rev:true});
+  if(mine&&mine.vs[en]) cands.push({e:mine.vs[en],src:"all modes",rev:false});
+  if(theirs&&theirs.vs[name]) cands.push({e:theirs.vs[name],src:"all modes",rev:true});
+  const pick=cands.find(c=>c.e.w!==undefined)||cands[0];
+  if(!pick) return {en,none:true};
+  const d=pick.e.d===undefined?undefined:(pick.rev?-pick.e.d:pick.e.d);
+  const w=pick.e.w===undefined?undefined:(pick.rev?+(100-pick.e.w).toFixed(1):pick.e.w);
+  return {en,d,w,src:pick.src,rev:pick.rev};
+}
+
+// Matchup axis: average of the win rate against each enemy on the board.
+// Returns {mu:null} when no enemy has a published pairing — never a substitute number.
+function matchup(name,enemies,mode){
+  const detail=enemies.map(en=>pairing(name,en,mode));
+  const ws=detail.filter(x=>x.w!==undefined).map(x=>x.w);
+  const mu=ws.length?+(ws.reduce((a,b)=>a+b,0)/ws.length).toFixed(1):null;
+  return {mu,n:ws.length,detail};
+}
+
+// x is the better pick than y: at least as good on both axes, strictly better on one.
+// If either side has no matchup number, the comparison is on map alone.
+function dominates(x,y){
+  if(x.mu===null||y.mu===null) return x.map>y.map;
+  return x.map>=y.map&&x.mu>=y.mu&&(x.map>y.map||x.mu>y.mu);
+}
+
+// Where a pairing came from: the game mode or "all modes", and whether it was read off the enemy's page.
+const srcNote=x=>`<span class="src">(${x.src}${x.rev?`, from ${x.en}'s page`:""})</span>`;
+
+function edgeLabel(x){
+  if(x.none) return `vs ${x.en}: <span class="none">no data</span>`;
+  const w=x.w!==undefined?`${x.w}%`:"";
+  const s=" "+srcNote(x);
+  if(x.d===undefined) return `vs ${x.en}: ${w}${s}`;
+  const dd=(x.d>0?"+":"")+x.d;
+  if(x.w===undefined) return `vs ${x.en}: ${dd} vs expected, win rate not published (not counted)${s}`;
+  if(x.d>0&&x.w>50) return `vs ${x.en}: <span class="cnt">${w} — real counter (${dd} over expected)</span>${s}`;
+  if(x.d>0) return `vs ${x.en}: <span class="soft">${w} — loses, but ${dd} less badly than expected</span>${s}`;
+  if(x.w>50) return `vs ${x.en}: <span class="soft">${w} — wins, but ${dd} under expected</span>${s}`;
+  return `vs ${x.en}: <span class="lose">${w} — countered (${dd} under expected)</span>${s}`;
+}
+
+function answer(name){
+  if(answered) return;
+  answered=true;
+  const c=cur, wr=c.map.wr;
+  const rows=c.options.map(n=>{ const m=matchup(n,c.enemies,c.map.mode); return {n,map:wr[n],mu:m.mu,k:m.n,detail:m.detail}; });
+  rows.forEach(r=>{
+    r.domBy=rows.filter(o=>o!==r&&dominates(o,r)).sort((a,b)=>b.map-a.map).map(o=>o.n);
+    r.front=r.domBy.length===0;
+  });
+  const domList=l=>l.length<=3?l.join(", "):`${l.slice(0,3).join(", ")} +${l.length-3} more`;
+  rows.sort((a,b)=>(a.front===b.front?0:a.front?-1:1)||b.map-a.map);
+  const me=rows.find(r=>r.n===name);
+  stats.n++;
+  const fmtMu=r=>r.mu===null?"no data":`${r.mu}%`;
+  let cls,txt;
+  if(me.front){
+    stats.front++; cls="v-best";
+    const others=rows.filter(r=>r.front&&r!==me);
+    txt=`<b>Good pick.</b> ${name}: map ${me.map}%, matchup ${fmtMu(me)}${me.k?` over ${me.k} pairing${me.k>1?"s":""}`:""}. Nothing available beat it on both axes.`;
+    if(others.length){
+      txt+=` Other good picks and what you'd have traded:<ul>`+others.map(o=>{
+        const dm=+(o.map-me.map).toFixed(1);
+        const mu=(o.mu===null||me.mu===null)?"matchup not comparable":`${o.mu>me.mu?"+":""}${+(o.mu-me.mu).toFixed(1)} matchup`;
+        return `<li>${o.n}: ${dm>0?"+":""}${dm} map, ${mu}</li>`;
+      }).join("")+`</ul>`;
+    }
+  } else {
+    stats.dom++; cls="v-bad";
+    const d=rows.find(r=>r.n===me.domBy[0]);
+    const extra=me.domBy.length>1?` (also ${domList(me.domBy.slice(1))})`:"";
+    const dm=+(d.map-me.map).toFixed(1);
+    const muPart=(me.mu===null||d.mu===null)?"":`, matchup ${d.mu}% vs ${me.mu}%`;
+    const counteredBy=me.detail.filter(x=>!x.none&&x.w!==undefined&&x.w<50).map(x=>x.en);
+    const alsoCountered=counteredBy.length?` And ${name} is countered by ${counteredBy.join(" and ")}.`:"";
+    txt=`<b>${d.n} was the better pick.</b> It was still available${extra}: ${dm} points better on map (${d.map}% vs ${me.map}%)${muPart}.${alsoCountered}`;
+  }
+  if(me.map<50) txt+=` Note ${name} is below a coin-flip on this map.`;
+  if(c.enemies.length) txt+=`<div class="edges">${me.detail.map(edgeLabel).join("<br>")}</div>`;
+  let h=`<div class="verdict ${cls}">${txt}</div>`;
+  const perBrawler=r=>r.detail.map(x=>{
+    if(x.none||x.w===undefined) return `<span class="none">${x.en}: no pairing</span>`;
+    if(x.w>50) return `<span class="cnt">counters ${x.en} ${x.w}%</span> ${srcNote(x)}`;
+    if(x.w<50) return `<span class="lose">countered by ${x.en} ${x.w}%</span> ${srcNote(x)}`;
+    return `even with ${x.en} ${x.w}% ${srcNote(x)}`;
+  }).join("<br>");
+  const perCol=c.enemies.length?`<th>Per brawler</th>`:"";
+  h+=`<table><tr><th></th><th>Brawler</th><th class="w">Map</th><th class="w">Matchup</th>${perCol}<th>Status</th></tr>`;
+  rows.forEach((r,i)=>{
+    const rowc=r.n===name?"mine":(r.front?"front":"");
+    const mu=r.mu===null?`<td class="w none">no data</td>`:`<td class="w">${r.mu}%<span style="color:#6f6990"> /${r.k}</span></td>`;
+    const per=c.enemies.length?`<td class="s per">${perBrawler(r)}</td>`:"";
+    h+=`<tr class="${rowc}"><td class="n">${i+1}</td><td>${r.n}</td><td class="w">${r.map}%</td>${mu}${per}<td class="s">${r.front?"good pick":"better pick: "+domList(r.domBy)}</td></tr>`;
+  });
+  h+=`</table>`;
+  $("result").innerHTML=h;
+  saveStats();
+  updateScore();
+  document.querySelectorAll("button.pick").forEach(b=>b.disabled=true);
+}
+
+function updateScore(){
+  if(!stats.n){ $("pct").textContent="—"; $("tally").textContent="no drafts yet"; return; }
+  $("pct").textContent=Math.round(100*stats.front/stats.n)+"%";
+  $("tally").textContent=`${stats.front} good picks · ${stats.dom} had a better pick · ${stats.n} drafts`;
+}
+
+const KEY="drafttrainer:stats:v2";
+function saveStats(){ try{ localStorage.setItem(KEY,JSON.stringify(stats)); }catch(e){} }
+function loadStats(){
+  try{ const r=localStorage.getItem(KEY); if(r) stats=JSON.parse(r); }catch(e){}
+  updateScore();
+}
+
+function setPool(p){
+  pool=p;
+  $("t8").className = p==="core" ? "on" : "";
+  $("tall").className = p==="all" ? "on" : "";
+  if(cur){
+    // Same map, same bans, same board — only the brawlers you're allowed to pick change.
+    cur.options=myPool().filter(n=>!cur.gone.includes(n));
+    render();
+  }
+}
+
+$("next").onclick=newDraft;
+$("reset").onclick=()=>{ stats={n:0,front:0,dom:0}; saveStats(); updateScore(); };
+$("t8").onclick=()=>setPool("core");
+$("tall").onclick=()=>setPool("all");
+
+loadStats();
+newDraft();
+</script>
